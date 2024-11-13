@@ -29,15 +29,6 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
 
-      - name: Copy files to Vultr server
-        uses: appleboy/scp-action@v0.1.3
-        with:
-          host: ${{ secrets.VULTR_SERVER_IP }}
-          username: ${{ secrets.VULTR_SSH_USER }}
-          key: ${{ secrets.VULT_SERVER_PRIV }}
-          source: "/home/runner/work/Trader/Trader"
-          target: "/root/home/trading-server-binance"
-
       - name: Deploy on Vultr server
         uses: appleboy/ssh-action@v0.1.3
         with:
@@ -45,7 +36,6 @@ jobs:
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
           script: |
-            # Sicherstellen, dass Docker läuft und das neueste Image starten
             docker pull ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
             docker stop trading_bot_container || true
             docker rm trading_bot_container || true
