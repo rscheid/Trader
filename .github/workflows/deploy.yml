@@ -6,18 +6,10 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clear GitHub Actions Cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-clear-cache-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-clear-cache
-
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -29,13 +21,22 @@ jobs:
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
       - name: Log in to Docker Hub
-        run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Build and push Docker image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
+
+      # Lösche alle alten Dateien und Verzeichnisse auf dem Server-Zielpfad
+      - name: Clean target directory on Vultr server
+        uses: appleboy/ssh-action@v0.1.3
+        with:
+          host: ${{ secrets.VULTR_SERVER_IP }}
+          username: ${{ secrets.VULTR_SSH_USER }}
+          key: ${{ secrets.VULT_SERVER_PRIV }}
+          script: |
+            rm -rf /root/home/trading-server-binance/*
 
       # Kopiere die Dateien auf den Vultr-Server
       - name: Copy files to Vultr server
@@ -47,6 +48,7 @@ jobs:
           source: "/home/runner/work/Trader/Trader/*"
           target: "/root/home/trading-server-binance"
 
+      # Deployment-Schritt auf dem Vultr-Server
       - name: Deploy on Vultr server
         uses: appleboy/ssh-action@v0.1.3
         with:
