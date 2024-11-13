@@ -1,4 +1,4 @@
-name: Deploy to Vultr
+name: deploy
 
 on:
   push:
@@ -19,49 +19,18 @@ jobs:
           echo "${{ secrets.VULT_SERVER_PRIV }}" > ~/.ssh/github_rsa
           chmod 600 ~/.ssh/github_rsa
           eval "$(ssh-agent -s)"
-          # Kürze die Passphrase auf die ersten 7 Zeichen
-          SHORT_PASSPHRASE="${{ secrets.VULT_SERVER_PASSPHRASE }}" | cut -c1-7
-          echo "$SHORT_PASSPHRASE" | ssh-add ~/.ssh/github_rsa
-          ssh -Tvvv -o StrictHostKeyChecking=no root@${{ secrets.VULTR_SERVER_IP }}
+          ssh-add ~/.ssh/github_rsa
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-      - name: Build and push Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
-
-      # Lösche alle alten Dateien und Verzeichnisse auf dem Server-Zielpfad
-      - name: Clean target directory on Vultr server
-        uses: appleboy/ssh-action@v0.1.3
-        with:
-          host: ${{ secrets.VULTR_SERVER_IP }}
-          username: ${{ secrets.VULTR_SSH_USER }}
-          key: ${{ secrets.VULT_SERVER_PRIV }}
-          script: |
-            set -x
-            rm -rf /root/home/trading-server-binance/*
-            
-      - name: Test SSH connection to Vultr server
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VULT_SERVER_PRIV }}" > ~/.ssh/github_rsa
-          chmod 600 ~/.ssh/github_rsa
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/github_rsa -vvv root@${{ secrets.VULTR_SERVER_IP }} echo "SSH connection successful"
-
-      # Kopiere die Dateien auf den Vultr-Server
       - name: Copy files to Vultr server
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.VULTR_SERVER_IP }}
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
-          source: "/home/runner/work/Trader/Trader/*"
+          source: "."
           target: "/root/home/trading-server-binance"
 
-      # Deployment-Schritt auf dem Vultr-Server
       - name: Deploy on Vultr server
         uses: appleboy/ssh-action@v0.1.5
         with:
@@ -69,9 +38,8 @@ jobs:
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
           script: |
-            docker system prune -af
             cd /root/home/trading-server-binance
-            docker pull ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
+            docker build -t trading-bot:latest .
             docker stop trading_bot_container || true
             docker rm trading_bot_container || true
-            docker run -d --name trading_bot_container -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
+            docker run -d --name trading_bot_container -p 3000:3000 trading-bot:latest
