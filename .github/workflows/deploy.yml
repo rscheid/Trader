@@ -13,29 +13,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up SSH key for deployment
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VULT_SERVER_PRIV }}" > ~/.ssh/github_rsa
-          chmod 600 ~/.ssh/github_rsa
-          
-          # SSH known_hosts für GitHub hinzufügen
-          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-
-          # Optional: SSH-Konfigurationsdatei hinzufügen
-          echo "Host github.com" >> ~/.ssh/config
-          echo "  IdentityFile ~/.ssh/github_rsa" >> ~/.ssh/config
-          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-
       - name: Clone the Repository
         run: |
-          GIT_SSH_COMMAND="ssh -i ~/.ssh/github_rsa -o StrictHostKeyChecking=no" git clone git@github.com:rscheid/Trader.git ~/trading-server-binance
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/github_rsa -o StrictHostKeyChecking=no" git clone git@github.com:rscheid/Trader.git ./trading-server-binance
 
-      - name: SSH into Vultr server
-        uses: appleboy/ssh-action@v0.1.3
+      - name: Copy files to Vultr server
+        uses: appleboy/scp-action@v0.0.1
         with:
           host: ${{ secrets.VULTR_SERVER_IP }}
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
-          script: |
-            echo "Connection successful to Vultr server!"
+          source: "./trading-server-binance"
+          target: "/root/home/trading-server-binance"
