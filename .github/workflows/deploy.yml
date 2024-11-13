@@ -41,6 +41,7 @@ jobs:
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
           script: |
+            set -x
             rm -rf /root/home/trading-server-binance/*
 
       # Kopiere die Dateien auf den Vultr-Server
