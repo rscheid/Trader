@@ -22,6 +22,7 @@ jobs:
           # Kürze die Passphrase auf die ersten 7 Zeichen
           SHORT_PASSPHRASE="${{ secrets.VULT_SERVER_PASSPHRASE }}" | cut -c1-7
           echo "$SHORT_PASSPHRASE" | ssh-add ~/.ssh/github_rsa
+          ssh -Tvvv -o StrictHostKeyChecking=no root@${{ secrets.VULTR_SERVER_IP }}
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
       - name: Log in to Docker Hub
