@@ -1,5 +1,5 @@
 # Wähle eine Basis-Node-Version
-FROM node:14
+FROM node:20
 
 # Setze das Arbeitsverzeichnis im Container
 WORKDIR /app
