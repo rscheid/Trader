@@ -21,15 +21,15 @@ jobs:
           
           # SSH known_hosts für GitHub hinzufügen
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-          
-          # SSH-Konfiguration erstellen, um github_rsa für GitHub zu verwenden
+
+          # Optional: SSH-Konfigurationsdatei hinzufügen
           echo "Host github.com" >> ~/.ssh/config
           echo "  IdentityFile ~/.ssh/github_rsa" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
       - name: Clone the Repository
         run: |
-          git clone git@github.com:rscheid/Trader.git ~/trading-server-binance
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/github_rsa -o StrictHostKeyChecking=no" git clone git@github.com:rscheid/Trader.git ~/trading-server-binance
 
       - name: SSH into Vultr server
         uses: appleboy/ssh-action@v0.1.3
