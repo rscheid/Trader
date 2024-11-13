@@ -40,7 +40,9 @@ jobs:
           host: ${{ secrets.VULTR_SERVER_IP }}
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
+          port: 22
           script: |
+            echo "Testing SSH Connection"
             cd /root/home/trading-server-binance
 
             # Docker-Container stoppen und entfernen, falls er bereits läuft
