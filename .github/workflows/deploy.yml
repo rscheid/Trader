@@ -18,13 +18,18 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.VULT_SERVER_PRIV }}" > ~/.ssh/github_rsa
           chmod 600 ~/.ssh/github_rsa
+          
+          # SSH known_hosts für GitHub hinzufügen
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          
+          # SSH-Konfiguration erstellen, um github_rsa für GitHub zu verwenden
+          echo "Host github.com" >> ~/.ssh/config
+          echo "  IdentityFile ~/.ssh/github_rsa" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
       - name: Clone the Repository
         run: |
           git clone git@github.com:rscheid/Trader.git ~/trading-server-binance
-        env:
-          GIT_SSH_COMMAND: "ssh -i ~/.ssh/github_rsa -o StrictHostKeyChecking=no"
 
       - name: SSH into Vultr server
         uses: appleboy/ssh-action@v0.1.3
