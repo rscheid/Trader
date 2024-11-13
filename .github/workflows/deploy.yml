@@ -55,7 +55,7 @@ jobs:
 
       # Deployment-Schritt auf dem Vultr-Server
       - name: Deploy on Vultr server
-        uses: appleboy/ssh-action@v0.1.3
+        uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.VULTR_SERVER_IP }}
           username: ${{ secrets.VULTR_SSH_USER }}
