@@ -10,6 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Clear GitHub Actions Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-clear-cache-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-clear-cache
+
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -46,6 +54,7 @@ jobs:
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
           script: |
+            docker system prune -af
             cd /root/home/trading-server-binance
             docker pull ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
             docker stop trading_bot_container || true
