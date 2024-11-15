@@ -4,15 +4,17 @@ FROM python:3.9-slim
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
+# Python installieren
+RUN apt-get update && apt-get install -y python3 python3-pip
+
 # Dependencies installieren
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+
+# Installiere die Python-Abhängigkeiten
+RUN pip3 install -r requirements.txt
 
 # Kopiere die Datei `rsi_strategy.py`
 COPY rsi_strategy.py .
-
-# Stelle sicher, dass Python installiert ist
-RUN apt-get update && apt-get install -y python3 python3-pip
 
 # Standard-Befehl: Testlauf für die RSI-Strategie
 CMD ["python", "rsi_strategy.py"]
