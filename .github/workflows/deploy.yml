@@ -1,4 +1,4 @@
-name: deploy
+name: Deploy to Vultr
 
 on:
   push:
@@ -10,49 +10,73 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # 2. Setup SSH key for Vultr access
       - name: Set up SSH key for Vultr access
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VULT_SERVER_PRIV }}" > ~/.ssh/github_rsa
-          chmod 600 ~/.ssh/github_rsa
+          echo "${{ secrets.VULT_SERVER_PRIV }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/github_rsa
+          ssh-add ~/.ssh/id_rsa
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.VULTR_SERVER_IP }} >> ~/.ssh/known_hosts
 
+      # 3. Build and push Docker image (Logging erweitert)
+      - name: Build and push Docker image
+        run: |
+          echo "Starting Docker Build..."
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest .
+          echo "Pushing Docker Image to Hub..."
+          docker push ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
+        continue-on-error: false
+        shell: bash
+
+      # 4. Clean target directory on Vultr server
+      - name: Clean target directory on Vultr server
+        uses: appleboy/ssh-action@v0.1.3
+        with:
+          host: ${{ secrets.VULTR_SERVER_IP }}
+          username: ${{ secrets.VULTR_SSH_USER }}
+          key: ${{ secrets.VULT_SERVER_PRIV }}
+          script: |
+            set -x
+            rm -rf /home/trading-server-binance/*
+
+      # 5. Copy files to Vultr server
       - name: Copy files to Vultr server
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.VULTR_SERVER_IP }}
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
-          source: "."
-          target: "/root/home/trading-server-binance"
+          source: "/*"
+          target: "/home/trading-server-binance"
 
-      - name: Install Docker and Deploy on Vultr server
+      # 6. Deploy on Vultr server (Logging erweitert)
+      - name: Deploy on Vultr server
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.VULTR_SERVER_IP }}
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
           script: |
-            # Check if Docker is installed, and install if necessary
-            if ! command -v docker &> /dev/null
-            then
-                echo "Docker not found, installing Docker..."
-                apt-get update
-                apt-get install -y docker.io
-                systemctl start docker
-                systemctl enable docker
-            fi
-
-            # Navigate to the project directory
-            cd /root/home/trading-server-binance
-
-            # Build and run the Docker container
-            docker build -t trading-bot:latest .
+            set -x
+            cd /home/trading-server-binance
+            docker pull ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
             docker stop trading_bot_container || true
             docker rm trading_bot_container || true
-            docker run -d --name trading_bot_container -p 3000:3000 trading-bot:latest
+            docker run -d --name trading_bot_container -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/trading-bot:latest
+            docker ps
+
+      # 7. Log cleanup
+      - name: Archive logs
+        if: failure()
+        run: |
+          echo "Archiving logs for later inspection..."
+          mkdir -p logs
+          docker logs trading_bot_container > logs/deploy.log
+          tar -czvf deploy_logs.tar.gz logs/
