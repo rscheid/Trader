@@ -31,5 +31,5 @@ COPY . .
 EXPOSE 3000
 
 # Befehl zum Starten der Anwendung
-CMD ["node", "-e", "console.log('Server-Test erfolgreich!'); process.exit(0);"]
-# CMD ["npm", "start"]
+# CMD ["node", "-e", "console.log('Server-Test erfolgreich!'); process.exit(0);"]
+CMD ["npm", "start"]
