@@ -56,3 +56,9 @@ jobs:
             docker stop trading_bot_container || true
             docker rm trading_bot_container || true
             docker run -d --name trading_bot_container -p 3000:3000 trading-bot:latest
+
+      - name: Test RSI Strategy Script
+        run: |
+            docker build -t trading-bot-rsi .
+            docker run trading-bot-rsi
+
