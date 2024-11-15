@@ -1,3 +1,19 @@
+# Base Image für Python
+FROM python:3.9-slim
+
+# Arbeitsverzeichnis setzen
+WORKDIR /app
+
+# Dependencies installieren
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# Kopiere die Datei `rsi_strategy.py`
+COPY rsi_strategy.py .
+
+# Standard-Befehl: Testlauf für die RSI-Strategie
+CMD ["python", "rsi_strategy.py"]
+
 # Verwende Node.js 20 als Basis
 FROM node:20
 
