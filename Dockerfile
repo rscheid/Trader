@@ -4,14 +4,14 @@ FROM python:3.9-slim
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
-# Python installieren
+# Python und Pip installieren
 RUN apt-get update && apt-get install -y python3 python3-pip
 
 # Dependencies installieren
 COPY requirements.txt .
 
-# Installiere die Python-Abhängigkeiten
-RUN pip3 install -r requirements.txt
+# Sicherstellen, dass ccxt für Python3 installiert wird
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Kopiere die Datei `rsi_strategy.py`
 COPY rsi_strategy.py .
