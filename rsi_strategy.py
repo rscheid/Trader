@@ -27,6 +27,9 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
+# Testeintrag
+logging.info("Logging initialized. This is a test entry.")
+
 def calculate_rsi(closes):
     """Berechnet den RSI basierend auf Schlusskursen."""
     gains = [closes[i] - closes[i - 1] for i in range(1, len(closes)) if closes[i] > closes[i - 1]]
