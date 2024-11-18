@@ -25,6 +25,9 @@ RUN npm install
 # Kopiere den restlichen Projektinhalt
 COPY . .
 
+# Setze Schreibrechte für das Arbeitsverzeichnis
+RUN chmod -R 777 /app
+
 # Exponiere den Standardport der Anwendung
 EXPOSE 3000
 
