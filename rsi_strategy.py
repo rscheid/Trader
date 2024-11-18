@@ -3,6 +3,12 @@ import logging
 from dotenv import load_dotenv
 import os
 
+logging.basicConfig(
+    filename="trading_bot.log",  # Relativer Pfad
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
 # .env-Datei laden
 load_dotenv()
 
@@ -45,7 +51,7 @@ def get_rsi_signal(symbol="BTC/USDT", timeframe='1m', limit=14):
         # Entscheidungslogik basierend auf dem RSI
         if rsi < 30:
             return f"BUY Signal: RSI={rsi:.2f}"
-        elif rsi > 70:
+        elif rsi > 30:
             return f"SELL Signal: RSI={rsi:.2f}"
         else:
             return f"HOLD Signal: RSI={rsi:.2f}"
