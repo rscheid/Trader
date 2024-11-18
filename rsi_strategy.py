@@ -28,29 +28,21 @@ if not os.path.exists(log_directory):
 log_file = os.path.join(log_directory, 'trading_bot.log')
 
 # Logger konfigurieren
-# logging.basicConfig(
-    # level=logging.INFO,
-    # format='%(asctime)s - %(levelname)s - %(message)s',
-    # handlers=[
-        # logging.FileHandler(log_file),
-        # logging.StreamHandler()
+try:
+    file_handler = logging.FileHandler(log_file)
+    handlers = [logging.StreamHandler(), file_handler]
+except Exception as e:
+    print(f"Fehler beim Erstellen des FileHandlers: {e}")
+    handlers = [logging.StreamHandler()]
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 
-
 # Testeintrag
-logging.info("Logging initialized. This is a test entry.")
-
-# wenn fehler keine eingabe in log, dann Ausgabe
-try:
-    logging.info("Test-Log-Eintrag: Logging initialisiert.")
-except Exception as e:
-    print(f"Fehler beim Schreiben in die Log-Datei: {e}")
+logging.info("Logging initialisiert. Dies ist ein Testeintrag.")
 
 def calculate_rsi(closes):
     """Berechnet den RSI basierend auf Schlusskursen."""
@@ -74,41 +66,41 @@ def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
 
         if rsi < 30:
             return "BUY", rsi
-        elif rsi > 30:
+        elif rsi > 70:
             return "SELL", rsi
         else:
             return "HOLD", rsi
     except Exception as e:
-        logging.error(f"Error in get_rsi_signal: {e}")
+        logging.error(f"Fehler in get_rsi_signal: {e}")
         return "ERROR", None
 
 def execute_trade(signal, symbol="BTC/USDT", amount=0.001):
     """Führt basierend auf dem Signal einen simulierten Trade aus."""
     try:
         # Vor dem Ausführen eines Trades loggen
-        logging.info(f"Attempting to execute {signal} order for {amount} {symbol}")
+        logging.info(f"Versuche, {signal}-Order für {amount} {symbol} auszuführen")
         
         # BUY-Order
         if signal == "BUY":
             order = exchange.create_market_buy_order(symbol, amount)
-            logging.info(f"Executed BUY order: {order}")
-            return f"BUY order executed: {order}"
+            logging.info(f"BUY-Order ausgeführt: {order}")
+            return f"BUY-Order ausgeführt: {order}"
         
         # SELL-Order
         elif signal == "SELL":
             order = exchange.create_market_sell_order(symbol, amount)
-            logging.info(f"Executed SELL order: {order}")
-            return f"SELL order executed: {order}"
+            logging.info(f"SELL-Order ausgeführt: {order}")
+            return f"SELL-Order ausgeführt: {order}"
         
         # HOLD-Signal
         else:
-            logging.info("No trade executed (HOLD)")
-            return "No trade executed (HOLD)"
+            logging.info("Keine Order ausgeführt (HOLD)")
+            return "Keine Order ausgeführt (HOLD)"
     
     # Fehler abfangen und ins Log schreiben
     except Exception as e:
-        logging.error(f"Error in execute_trade: {e}")
-        return f"Error executing trade: {e}"
+        logging.error(f"Fehler in execute_trade: {e}")
+        return f"Fehler beim Ausführen des Trades: {e}"
 
 if __name__ == "__main__":
     # Beispielaufruf
@@ -117,8 +109,8 @@ if __name__ == "__main__":
 
     signal, rsi = get_rsi_signal(symbol)
     if signal != "ERROR":
-        print(f"{signal} Signal: RSI={rsi:.2f}")
+        print(f"{signal}-Signal: RSI={rsi:.2f}")
         trade_result = execute_trade(signal, symbol, amount)
         print(trade_result)
     else:
-        print("Error calculating RSI")
+        print("Fehler bei der Berechnung des RSI")
