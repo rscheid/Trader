@@ -60,22 +60,30 @@ def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
 def execute_trade(signal, symbol="BTC/USDT", amount=0.001):
     """Führt basierend auf dem Signal einen simulierten Trade aus."""
     try:
+        # Vor dem Ausführen eines Trades loggen
         logging.info(f"Attempting to execute {signal} order for {amount} {symbol}")
+        
+        # BUY-Order
         if signal == "BUY":
             order = exchange.create_market_buy_order(symbol, amount)
             logging.info(f"Executed BUY order: {order}")
             return f"BUY order executed: {order}"
+        
+        # SELL-Order
         elif signal == "SELL":
             order = exchange.create_market_sell_order(symbol, amount)
             logging.info(f"Executed SELL order: {order}")
             return f"SELL order executed: {order}"
+        
+        # HOLD-Signal
         else:
             logging.info("No trade executed (HOLD)")
             return "No trade executed (HOLD)"
+    
+    # Fehler abfangen und ins Log schreiben
     except Exception as e:
         logging.error(f"Error in execute_trade: {e}")
         return f"Error executing trade: {e}"
-
 
 if __name__ == "__main__":
     # Beispielaufruf
