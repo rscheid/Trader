@@ -3,12 +3,6 @@ import logging
 from dotenv import load_dotenv
 import os
 
-logging.basicConfig(
-    filename="trading_bot.log",  # Relativer Pfad
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
 # .env-Datei laden
 load_dotenv()
 
@@ -16,7 +10,7 @@ load_dotenv()
 API_KEY = os.getenv("TESTNET_API_KEY")
 SECRET_KEY = os.getenv("TESTNET_SECRET")
 
-# Verbindung zur Binance-Testnet-API herstellen
+# Verbindung zur Binance Testnet API herstellen
 exchange = ccxt.binance({
     'apiKey': API_KEY,
     'secret': SECRET_KEY,
@@ -26,10 +20,17 @@ exchange = ccxt.binance({
 # Testnet aktivieren
 exchange.set_sandbox_mode(True)
 
+# Logger konfigurieren
+logging.basicConfig(
+    filename="/app/trading_bot.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
 def calculate_rsi(closes):
     """Berechnet den RSI basierend auf Schlusskursen."""
-    gains = [closes[i] - closes[i-1] for i in range(1, len(closes)) if closes[i] > closes[i-1]]
-    losses = [closes[i-1] - closes[i] for i in range(1, len(closes)) if closes[i] < closes[i-1]]
+    gains = [closes[i] - closes[i - 1] for i in range(1, len(closes)) if closes[i] > closes[i - 1]]
+    losses = [closes[i - 1] - closes[i] for i in range(1, len(closes)) if closes[i] < closes[i - 1]]
 
     avg_gain = sum(gains) / len(gains) if gains else 0
     avg_loss = sum(losses) / len(losses) if losses else 1  # Kein Verlust = künstlich 1
@@ -38,26 +39,51 @@ def calculate_rsi(closes):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-def get_rsi_signal(symbol="BTC/USDT", timeframe='1m', limit=14):
+def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
     """Holt Marktdaten, berechnet den RSI und gibt ein Signal zurück."""
     try:
-        # Hole historische Marktdaten
         candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-        closes = [c[4] for c in candles]  # Nur Schlusskurse
+        closes = [c[4] for c in candles]
 
-        # Berechne den RSI
         rsi = calculate_rsi(closes)
 
-        # Entscheidungslogik basierend auf dem RSI
         if rsi < 30:
-            return f"BUY Signal: RSI={rsi:.2f}"
-        elif rsi > 30:
-            return f"SELL Signal: RSI={rsi:.2f}"
+            return "BUY", rsi
+        elif rsi > 70:
+            return "SELL", rsi
         else:
-            return f"HOLD Signal: RSI={rsi:.2f}"
+            return "HOLD", rsi
     except Exception as e:
-        return f"Error in get_rsi_signal: {e}"
+        logging.error(f"Error in get_rsi_signal: {e}")
+        return "ERROR", None
 
-# Testlauf
+def execute_trade(signal, symbol="BTC/USDT", amount=0.001):
+    """Führt basierend auf dem Signal einen simulierten Trade aus."""
+    try:
+        if signal == "BUY":
+            order = exchange.create_market_buy_order(symbol, amount)
+            logging.info(f"Executed BUY order: {order}")
+            return f"BUY order executed: {order}"
+        elif signal == "SELL":
+            order = exchange.create_market_sell_order(symbol, amount)
+            logging.info(f"Executed SELL order: {order}")
+            return f"SELL order executed: {order}"
+        else:
+            logging.info("No trade executed (HOLD)")
+            return "No trade executed (HOLD)"
+    except Exception as e:
+        logging.error(f"Error in execute_trade: {e}")
+        return f"Error executing trade: {e}"
+
 if __name__ == "__main__":
-    print(get_rsi_signal())
+    # Beispielaufruf
+    symbol = "BTC/USDT"
+    amount = 0.001
+
+    signal, rsi = get_rsi_signal(symbol)
+    if signal != "ERROR":
+        print(f"{signal} Signal: RSI={rsi:.2f}")
+        trade_result = execute_trade(signal, symbol, amount)
+        print(trade_result)
+    else:
+        print("Error calculating RSI")
