@@ -3,12 +3,12 @@ const { exec } = require('child_process');
 const app = express();
 const PORT = 3000;
 
-// Endpoint: Hole RSI-Signal
-app.get('/rsi', (req, res) => {
+// Endpoint: Führe einen Trade basierend auf RSI aus
+app.get('/trade', (req, res) => {
     exec('python3 rsi_strategy.py', (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing Python script: ${error.message}`);
-            return res.status(500).send('Error running RSI strategy');
+            return res.status(500).send('Error executing trade');
         }
         if (stderr) {
             console.error(`Python script error: ${stderr}`);
