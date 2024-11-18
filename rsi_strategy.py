@@ -1,8 +1,14 @@
 import ccxt
+import logging
+from dotenv import load_dotenv
+import os
 
-# Binance API-Konfiguration
-API_KEY = "YOUR_TESTNET_API_KEY"
-SECRET_KEY = "YOUR_TESTNET_SECRET"
+# .env-Datei laden
+load_dotenv()
+
+# Binance Testnet-API-Schlüssel aus Umgebungsvariablen lesen
+API_KEY = os.getenv("TESTNET_API_KEY")
+SECRET_KEY = os.getenv("TESTNET_SECRET")
 
 # Verbindung zur Binance-Testnet-API herstellen
 exchange = ccxt.binance({
