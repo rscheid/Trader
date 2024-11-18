@@ -28,14 +28,20 @@ if not os.path.exists(log_directory):
 log_file = os.path.join(log_directory, 'trading_bot.log')
 
 # Logger konfigurieren
+# logging.basicConfig(
+    # level=logging.INFO,
+    # format='%(asctime)s - %(levelname)s - %(message)s',
+    # handlers=[
+        # logging.FileHandler(log_file),
+        # logging.StreamHandler()
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(log_file),
         logging.StreamHandler()
     ]
 )
+
 
 # Testeintrag
 logging.info("Logging initialized. This is a test entry.")
