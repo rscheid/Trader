@@ -20,11 +20,21 @@ exchange = ccxt.binance({
 # Testnet aktivieren
 exchange.set_sandbox_mode(True)
 
+# Sicherstellen, dass das Verzeichnis existiert
+log_directory = '/app'
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
+
+log_file = os.path.join(log_directory, 'trading_bot.log')
+
 # Logger konfigurieren
 logging.basicConfig(
-    filename="/app/trading_bot.log",  # Absoluter Pfad im Container
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
+    ]
 )
 
 # Testeintrag
