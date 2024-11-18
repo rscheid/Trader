@@ -40,6 +40,12 @@ logging.basicConfig(
 # Testeintrag
 logging.info("Logging initialized. This is a test entry.")
 
+# wenn fehler keine eingabe in log, dann Ausgabe
+try:
+    logging.info("Test-Log-Eintrag: Logging initialisiert.")
+except Exception as e:
+    print(f"Fehler beim Schreiben in die Log-Datei: {e}")
+
 def calculate_rsi(closes):
     """Berechnet den RSI basierend auf Schlusskursen."""
     gains = [closes[i] - closes[i - 1] for i in range(1, len(closes)) if closes[i] > closes[i - 1]]
