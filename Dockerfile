@@ -4,12 +4,22 @@ FROM node:20
 # Setze das Arbeitsverzeichnis im Container
 WORKDIR /app
 
-# Installiere Python3, Pip und venv
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
+# Installiere System-Tools und Bibliotheken für Python und Pandas
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    gcc \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Erstelle eine virtuelle Python-Umgebung und installiere Python-Abhängigkeiten
 COPY requirements.txt .
 RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip setuptools wheel && \
     /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Setze die virtuelle Umgebung als Standard für Python
