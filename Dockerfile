@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip setuptools wheel && \
-    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    /opt/venv/bin/pip install --only-binary=:all: --no-cache-dir -r requirements.txt
 
 # Setze die virtuelle Umgebung als Standard für Python
 ENV PATH="/opt/venv/bin:$PATH"
