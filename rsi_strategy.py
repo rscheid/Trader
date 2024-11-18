@@ -22,7 +22,7 @@ exchange.set_sandbox_mode(True)
 
 # Logger konfigurieren
 logging.basicConfig(
-    filename="/app/trading_bot.log",
+    filename="/app/trading_bot.log",  # Absoluter Pfad im Container
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
@@ -49,7 +49,7 @@ def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
 
         if rsi < 30:
             return "BUY", rsi
-        elif rsi > 70:
+        elif rsi > 30:
             return "SELL", rsi
         else:
             return "HOLD", rsi
