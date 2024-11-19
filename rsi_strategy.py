@@ -29,7 +29,7 @@ log_file = os.path.join(log_directory, 'trading_bot.log')
 
 # Logger konfigurieren
 try:
-    file_handler = logging.FileHandler(log_file)
+    file_handler = logging.FileHandler(log_file, mode='a')  # Append-Modus
     handlers = [logging.StreamHandler(), file_handler]
 except Exception as e:
     print(f"Fehler beim Erstellen des FileHandlers: {e}")
@@ -41,13 +41,14 @@ logging.basicConfig(
     handlers=handlers
 )
 
-# Testeintrag
 logging.info("Logging initialisiert. Dies ist ein Testeintrag.")
 
-def calculate_rsi(closes):
+# RSI-Berechnung
+def calculate_rsi(closes, period=14):
     """Berechnet den RSI basierend auf Schlusskursen."""
-    gains = [closes[i] - closes[i - 1] for i in range(1, len(closes)) if closes[i] > closes[i - 1]]
-    losses = [closes[i - 1] - closes[i] for i in range(1, len(closes)) if closes[i] < closes[i - 1]]
+    delta = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+    gains = [d for d in delta if d > 0]
+    losses = [-d for d in delta if d < 0]
 
     avg_gain = sum(gains) / len(gains) if gains else 0
     avg_loss = sum(losses) / len(losses) if losses else 1  # Kein Verlust = künstlich 1
@@ -56,54 +57,54 @@ def calculate_rsi(closes):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
+# Signal-Berechnung
 def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
     """Holt Marktdaten, berechnet den RSI und gibt ein Signal zurück."""
     try:
         candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
         closes = [c[4] for c in candles]
-
         rsi = calculate_rsi(closes)
 
+        logging.info(f"RSI berechnet: {rsi:.2f} für {symbol}")
+
         if rsi < 30:
+            logging.info("Signal: BUY")
             return "BUY", rsi
-        elif rsi > 70:
+        elif rsi > 50:  # Angepasst auf 50 statt 70
+            logging.info("Signal: SELL")
             return "SELL", rsi
         else:
+            logging.info("Signal: HOLD")
             return "HOLD", rsi
     except Exception as e:
         logging.error(f"Fehler in get_rsi_signal: {e}")
         return "ERROR", None
 
+# Trade-Ausführung
 def execute_trade(signal, symbol="BTC/USDT", amount=0.001):
     """Führt basierend auf dem Signal einen simulierten Trade aus."""
     try:
-        # Vor dem Ausführen eines Trades loggen
-        logging.info(f"Versuche, {signal}-Order für {amount} {symbol} auszuführen")
-        
-        # BUY-Order
+        logging.info(f"Starte {signal}-Order: Symbol={symbol}, Menge={amount}")
+
         if signal == "BUY":
             order = exchange.create_market_buy_order(symbol, amount)
-            logging.info(f"BUY-Order ausgeführt: {order}")
-            return f"BUY-Order ausgeführt: {order}"
-        
-        # SELL-Order
+            logging.info(f"BUY-Order erfolgreich: {order}")
+            return f"BUY-Order erfolgreich: {order}"
+
         elif signal == "SELL":
             order = exchange.create_market_sell_order(symbol, amount)
-            logging.info(f"SELL-Order ausgeführt: {order}")
-            return f"SELL-Order ausgeführt: {order}"
-        
-        # HOLD-Signal
-        else:
-            logging.info("Keine Order ausgeführt (HOLD)")
-            return "Keine Order ausgeführt (HOLD)"
-    
-    # Fehler abfangen und ins Log schreiben
-    except Exception as e:
-        logging.error(f"Fehler in execute_trade: {e}")
-        return f"Fehler beim Ausführen des Trades: {e}"
+            logging.info(f"SELL-Order erfolgreich: {order}")
+            return f"SELL-Order erfolgreich: {order}"
 
+        else:
+            logging.info("Signal: HOLD - Kein Trade ausgeführt.")
+            return "HOLD - Kein Trade ausgeführt."
+    except Exception as e:
+        logging.error(f"Fehler bei {signal}-Order: {e}")
+        return f"Fehler bei {signal}-Order: {e}"
+
+# Hauptausführung
 if __name__ == "__main__":
-    # Beispielaufruf
     symbol = "BTC/USDT"
     amount = 0.001
 
