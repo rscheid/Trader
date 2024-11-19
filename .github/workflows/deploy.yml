@@ -55,7 +55,12 @@ jobs:
             docker build -t trading-bot:latest .
             docker stop trading_bot_container || true
             docker rm trading_bot_container || true
-            docker run -d --name trading_bot_container -p 3000:3000 trading-bot:latest
+            # docker run -d --name trading_bot_container -p 3000:3000 trading-bot:latest
+            docker run -d \
+              --name trading_bot_container \
+              -p 3000:3000 \
+              -v /var/log/trading-bot:/app \
+              trading-bot:latest
 
       - name: Deploy RSI Strategy Container
         run: |
