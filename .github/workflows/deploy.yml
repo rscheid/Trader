@@ -59,7 +59,7 @@ jobs:
             docker run -d \
               --name trading_bot_container \
               -p 3000:3000 \
-              -v /var/log/trading-bot:/app \
+              -v /var/log/trading-bot/trading_bot.log:/app/trading_bot.log \
               trading-bot:latest
 
       - name: Deploy RSI Strategy Container
