@@ -35,6 +35,20 @@ RUN npm install
 # Kopiere den restlichen Projektinhalt
 COPY . .
 
+# Installiere Cron im Docker-Image
+RUN apt-get update && apt-get install -y cron
+
+# Füge das Log-Clear-Skript in den Container ein
+COPY clear_logs.sh /usr/local/bin/clear_logs.sh
+RUN chmod +x /usr/local/bin/clear_logs.sh
+
+# Füge den Cron-Job hinzu
+RUN echo "0 0 1 */2 * /bin/bash /usr/local/bin/clear_logs.sh" > /etc/cron.d/clear_logs
+RUN chmod 0644 /etc/cron.d/clear_logs
+
+# Starte den Cron-Dienst beim Container-Start
+CMD cron && tail -f /dev/null
+
 # Setze Schreibrechte für das Arbeitsverzeichnis
 RUN chmod -R 777 /app
 
