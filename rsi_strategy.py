@@ -2,6 +2,9 @@ import ccxt
 import logging
 from dotenv import load_dotenv
 import os
+import sqlite3
+import time
+import csv
 
 # .env-Datei laden
 load_dotenv()
@@ -20,14 +23,31 @@ exchange = ccxt.binance({
 # Testnet aktivieren
 exchange.set_sandbox_mode(True)
 
-# Sicherstellen, dass das Verzeichnis existiert
+# Verbindung zur SQLite-Datenbank
+db_path = "trading_data.db"
+conn = sqlite3.connect(db_path)
+cursor = conn.cursor()
+
+# Tabelle erstellen, falls sie nicht existiert
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS trading_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    symbol TEXT,
+    rsi REAL,
+    signal TEXT,
+    action TEXT
+)
+""")
+conn.commit()
+
+# Logger konfigurieren
 log_directory = '/app'
 if not os.path.exists(log_directory):
     os.makedirs(log_directory)
 
 log_file = os.path.join(log_directory, 'trading_bot.log')
 
-# Logger konfigurieren
 try:
     file_handler = logging.FileHandler(log_file, mode='a')  # Append-Modus
     handlers = [logging.StreamHandler(), file_handler]
@@ -43,9 +63,14 @@ logging.basicConfig(
 
 logging.info("Logging initialisiert. Dies ist ein Testeintrag.")
 
+# Beispiel: Alle Paare aus der CSV-Datei laden
+pairs = []
+with open("pair_rankings.csv", "r") as file:
+    reader = csv.DictReader(file)
+    pairs = [row["pair"] for row in reader]
+
 # RSI-Berechnung
 def calculate_rsi(closes, period=14):
-    """Berechnet den RSI basierend auf Schlusskursen."""
     delta = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
     gains = [d for d in delta if d > 0]
     losses = [-d for d in delta if d < 0]
@@ -59,7 +84,6 @@ def calculate_rsi(closes, period=14):
 
 # Signal-Berechnung
 def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
-    """Holt Marktdaten, berechnet den RSI und gibt ein Signal zurück."""
     try:
         candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
         closes = [c[4] for c in candles]
@@ -70,7 +94,7 @@ def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
         if rsi < 30:
             logging.info("Signal: BUY")
             return "BUY", rsi
-        elif rsi > 50:  # Angepasst auf 50 statt 70
+        elif rsi > 50:
             logging.info("Signal: SELL")
             return "SELL", rsi
         else:
@@ -80,11 +104,23 @@ def get_rsi_signal(symbol="BTC/USDT", timeframe="1m", limit=14):
         logging.error(f"Fehler in get_rsi_signal: {e}")
         return "ERROR", None
 
-# Trade-Ausführung
-def execute_trade(signal, symbol="BTC/USDT", amount=0.001):
-    """Führt basierend auf dem Signal einen simulierten Trade aus."""
+# Logging in die Datenbank
+def log_to_db(symbol, rsi, signal, action):
     try:
-        logging.info(f"Starte {signal}-Order: Symbol={symbol}, Menge={amount}")
+        cursor.execute("""
+        INSERT INTO trading_data (symbol, rsi, signal, action)
+        VALUES (?, ?, ?, ?)
+        """, (symbol, rsi, signal, action))
+        conn.commit()
+        logging.info(f"Eintrag in die Datenbank: Symbol={symbol}, RSI={rsi}, Signal={signal}, Action={action}")
+    except Exception as e:
+        logging.error(f"Fehler beim Schreiben in die Datenbank: {e}")
+
+# Handelsstrategie anwenden
+def execute_trade(signal, symbol="BTC/USDT", amount=0.001):
+    try:
+        action = "Trade ausgeführt" if signal in ["BUY", "SELL"] else "Kein Trade"
+        log_to_db(symbol, rsi, signal, action)
 
         if signal == "BUY":
             order = exchange.create_market_buy_order(symbol, amount)
@@ -105,13 +141,20 @@ def execute_trade(signal, symbol="BTC/USDT", amount=0.001):
 
 # Hauptausführung
 if __name__ == "__main__":
-    symbol = "BTC/USDT"
     amount = 0.001
 
-    signal, rsi = get_rsi_signal(symbol)
-    if signal != "ERROR":
-        print(f"{signal}-Signal: RSI={rsi:.2f}")
-        trade_result = execute_trade(signal, symbol, amount)
-        print(trade_result)
-    else:
-        print("Fehler bei der Berechnung des RSI")
+    for pair in pairs:
+        signal, rsi = get_rsi_signal(pair)
+        if signal != "ERROR":
+            action = "Trade ausgeführt" if signal in ["BUY", "SELL"] else "Kein Trade"
+            log_to_db(pair, rsi, signal, action)
+
+            if signal == "BUY":
+                logging.info(f"Starte BUY-Order: {pair}, Menge={amount}")
+            elif signal == "SELL":
+                logging.info(f"Starte SELL-Order: {pair}, Menge={amount}")
+        else:
+            logging.error("Fehler bei der Berechnung des RSI")
+
+        # 60 Sekunden warten vor der nächsten Berechnung
+        time.sleep(60)

@@ -4,11 +4,13 @@ FROM node:20
 # Setze das Arbeitsverzeichnis im Container
 WORKDIR /app
 
-# Installiere System-Tools und Bibliotheken für Python und Pandas
+# Installiere System-Tools und SQLite
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    sqlite3 \
+    apt-utils \
     gcc \
     build-essential \
     libssl-dev \
@@ -47,6 +49,11 @@ RUN chmod +x /usr/local/bin/clear_logs.sh
 RUN echo "0 0 1 */2 * /bin/bash /usr/local/bin/clear_logs.sh" > /etc/cron.d/clear_logs
 RUN chmod 0644 /etc/cron.d/clear_logs
 
+# Dauerhafte Zeitzoneneinstellung im Dockerfile
+RUN apt-get update && apt-get install -y tzdata && \
+    ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata
+
 # Starte den Cron-Dienst beim Container-Start
 CMD cron && tail -f /dev/null
 
@@ -57,4 +64,5 @@ RUN chmod -R 777 /app
 EXPOSE 3000
 
 # Fallback für den Node.js-Server
-CMD ["npm", "start"]
+# CMD ["npm", "start"]
+CMD ["sh", "-c", "node index.js & python3 rsi_strategy.py"]
