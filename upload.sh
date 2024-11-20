@@ -9,6 +9,9 @@ if [ ! -d .git ]; then
   exit 1
 fi
 
+#  Sicherstellen, Automatisierungsschicht die URL auf https://github.com gesetzt wird
+git remote set-url origin git@github.com:rscheid/Trader.git
+
 # Alle Änderungen zum Commit vorbereiten
 echo "Staging alle Dateien..."
 git add -A
