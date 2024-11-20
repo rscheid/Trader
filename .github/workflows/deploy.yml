@@ -38,7 +38,7 @@ jobs:
           username: ${{ secrets.VULTR_SSH_USER }}
           key: ${{ secrets.VULT_SERVER_PRIV }}
           script: |
-            # Check if Docker is installed, and install if necessary
+            # Install Docker if not present
             if ! command -v docker &> /dev/null
             then
                 echo "Docker not found, installing Docker..."
@@ -48,6 +48,9 @@ jobs:
                 systemctl enable docker
             fi
 
+            # Ensure log directory exists
+            mkdir -p /var/log/trading-bot/
+
             # Navigate to the project directory
             cd /root/home/trading-server-binance
 
@@ -55,16 +58,8 @@ jobs:
             docker build -t trading-bot:latest .
             docker stop trading_bot_container || true
             docker rm trading_bot_container || true
-            # docker run -d --name trading_bot_container -p 3000:3000 trading-bot:latest
             docker run -d \
               --name trading_bot_container \
               -p 3000:3000 \
               -v /var/log/trading-bot/trading_bot.log:/app/trading_bot.log \
               trading-bot:latest
-
-      - name: Deploy RSI Strategy Container
-        run: |
-            docker build -t trading-bot-rsi .
-            docker run -d --name trading_bot_container -p 3000:3000 trading-bot-rsi
-
-
