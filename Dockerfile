@@ -20,7 +20,8 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip setuptools wheel && \
-    /opt/venv/bin/pip install --only-binary=:all: --no-cache-dir -r requirements.txt
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt || \
+    /opt/venv/bin/pip install --no-cache-dir git+https://github.com/bukosabino/ta
 
 # Setze die virtuelle Umgebung als Standard für Python
 ENV PATH="/opt/venv/bin:$PATH"
@@ -55,5 +56,5 @@ RUN chmod -R 777 /app
 # Exponiere den Standardport der Anwendung
 EXPOSE 3000
 
-# Startbefehl für den Node.js-Server
+# Fallback für den Node.js-Server
 CMD ["npm", "start"]
