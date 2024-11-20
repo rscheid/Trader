@@ -1,0 +1,12 @@
+# Ignoriere alle .log-Dateien
+*.log
+
+# Ignoriere das Verzeichnis 'temp'
+temp/
+
+# virtuelle Umgebung ausschließen
+venv/
+*.pyc
+__pycache__/
+*.db
+.env
