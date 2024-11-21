@@ -33,10 +33,17 @@ COPY rsi_strategy.py .
 
 # Kopiere `package.json` und `package-lock.json`, wenn vorhanden, und installiere Node.js-Abhängigkeiten
 COPY package*.json ./
+RUN npm install -g npm@latest
 RUN npm install
 
 # Kopiere den restlichen Projektinhalt
 COPY . .
+
+# Kopiere Python-Skripte
+COPY database.py /app
+COPY trading_logic.py /app
+COPY rsi_strategy.py /app
+
 
 # Installiere Cron im Docker-Image
 RUN apt-get update && apt-get install -y cron

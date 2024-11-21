@@ -1,78 +1,86 @@
-import ccxt
-import sqlite3
-import pandas as pd
-from multiprocessing import Pool
-from datetime import datetime
-
-# Binance-API Verbindung
-exchange = ccxt.binance()
-
-def fetch_trading_pairs():
-    """
-    Handelspaare von Binance abrufen.
-    """
-    markets = exchange.load_markets()
-    return [market for market in markets]
-
-
+import logging
 import time
+import sqlite3
+from database import load_active_pairs, log_to_db
+from trading_logic import setup_exchange, calculate_rsi
+from dotenv import load_dotenv
+import os
+import ccxt
 
-def fetch_historical_data(pair, timeframe='1m', limit=500, retries=3):
+# Logging konfigurieren
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# Binance-Setup
+load_dotenv()
+API_KEY = os.getenv("TESTNET_API_KEY")
+SECRET_KEY = os.getenv("TESTNET_SECRET")
+
+if not API_KEY or not SECRET_KEY:
+    raise ValueError("API_KEY und SECRET_KEY müssen in der .env-Datei definiert sein!")
+
+exchange = setup_exchange(API_KEY, SECRET_KEY)
+
+def fetch_candle_data(symbol, timeframe="1m", limit=14, retries=3):
     """
-    Historische OHLCV-Daten für ein Handelspaar abrufen, mit Fehlerhandling.
+    Holt OHLCV-Daten für ein Handelspaar mit Fehlerbehandlung und Wiederholungen.
     """
     for attempt in range(retries):
         try:
-            ohlcv = exchange.fetch_ohlcv(pair, timeframe=timeframe, limit=limit)
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            return df
+            candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+            return [c[4] for c in candles]  # Nur 'close'-Preise zurückgeben
         except Exception as e:
-            print(f"Fehler beim Abrufen der Daten für {pair}: {e}")
+            logging.warning(f"Fehler beim Abrufen der Candle-Daten für {symbol}: {e}")
             if attempt < retries - 1:
-                print(f"Erneuter Versuch für {pair} in 5 Sekunden...")
-                time.sleep(5)  # Wartezeit vor erneutem Versuch
+                logging.info(f"Erneuter Versuch für {symbol} in 5 Sekunden...")
+                time.sleep(5)
             else:
-                print(f"Maximale Versuche für {pair} erreicht. Überspringe.")
+                logging.error(f"Maximale Versuche für {symbol} erreicht. Überspringe.")
                 return None
 
+def process_pairs():
+    """
+    Verarbeitet alle aktiven Handelspaare: Abrufen von Daten, RSI-Berechnung, Logging.
+    """
+    logging.info("Lade aktive Handelspaare...")
+    pairs = load_active_pairs()  # Paare aus der Datenbank laden
+    if not pairs:
+        logging.warning("Keine aktiven Handelspaare gefunden.")
+        return
 
-def calculate_fees(df, fee_rate=0.001):
-    """
-    Gebühren berechnen und Daten erweitern.
-    """
-    df['fees'] = df['close'] * df['volume'] * fee_rate
-    df['net_volume'] = df['volume'] - df['fees']
-    return df
+    for symbol in pairs:
+        try:
+            logging.info(f"Verarbeite Handelspaar: {symbol}")
 
-def store_to_sqlite(df, table_name, db_name='trading_data.db'):
-    """
-    Speichert die Daten in einer SQLite-Datenbank.
-    """
-    try:
-        conn = sqlite3.connect(db_name)
-        df.to_sql(table_name, conn, if_exists='replace', index=False)
-        conn.close()
-        print(f"Daten für {table_name} erfolgreich gespeichert.")
-    except Exception as e:
-        print(f"Fehler beim Speichern der Daten in {table_name}: {e}")
+            # 1. Abrufen der Candle-Daten
+            closes = fetch_candle_data(symbol)
+            if closes is None or len(closes) < 14:
+                logging.warning(f"Unzureichende Daten für {symbol}. Überspringe.")
+                continue
 
-def process_pair(pair):
-    """
-    Verarbeitet ein einzelnes Handelspaar: Abrufen, Gebühren berechnen, Speichern.
-    """
-    print(f"Verarbeite {pair}...")
-    data = fetch_historical_data(pair)
-    if data is not None:
-        data = calculate_fees(data)  # Gebühren berechnen
-        table_name = pair.replace('/', '_')
-        store_to_sqlite(data, table_name)
+            # 2. RSI-Berechnung
+            rsi = calculate_rsi(closes)
+            signal = "BUY" if rsi < 30 else "SELL" if rsi > 70 else "HOLD"
+            action = "Trade ausgeführt" if signal in ["BUY", "SELL"] else "Kein Trade"
+
+            # 3. Ergebnisse in die Datenbank loggen
+            log_to_db(symbol, rsi, signal, action)
+            logging.info(f"RSI: {rsi:.2f}, Signal: {signal}, Aktion: {action}")
+
+        except Exception as e:
+            logging.error(f"Fehler bei der Verarbeitung von {symbol}: {e}")
 
 if __name__ == "__main__":
-    # 1. Handelspaare abrufen
-    trading_pairs = fetch_trading_pairs()
-    print(f"Gefundene Handelspaare: {len(trading_pairs)}")
+    try:
+        while True:
+            logging.info("Starte Verarbeitung aller Handelspaare...")
+            process_pairs()  # Alle Paare verarbeiten
+            logging.info("Verarbeitung abgeschlossen. Warte 10 Sekunden...")
+            time.sleep(10)  # Pause zwischen Verarbeitungszyklen
+    except KeyboardInterrupt:
+        logging.info("Bot wurde gestoppt.")
+    except Exception as e:
+        logging.error(f"Unerwarteter Fehler: {e}")
 
-    # 2. Multiprocessing für die Verarbeitung
-    with Pool(processes=10) as pool:  # Passe die Anzahl der Prozesse an deinen Server an
-        pool.map(process_pair, trading_pairs[:50])  # Begrenzung zum Testen auf die ersten 50 Paare
