@@ -1,7 +1,6 @@
 import ccxt
 import logging
 
-# Binance Testnet konfigurieren
 def setup_exchange(api_key, secret_key):
     exchange = ccxt.binance({
         'apiKey': api_key,
@@ -17,8 +16,8 @@ def calculate_rsi(closes, period=14):
     losses = [-d for d in delta if d < 0]
 
     avg_gain = sum(gains) / len(gains) if gains else 0
-    avg_loss = sum(losses) / len(losses) if losses else 1  # Kein Verlust = künstlich 1
+    avg_loss = sum(losses) / len(losses) if losses else 1
 
     rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+    return 100 - (100 / (1 + rs))
+

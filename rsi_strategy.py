@@ -11,18 +11,14 @@ load_dotenv()
 API_KEY = os.getenv("TESTNET_API_KEY")
 SECRET_KEY = os.getenv("TESTNET_SECRET")
 
-# Validierung der Umgebungsvariablen
 if not API_KEY or not SECRET_KEY:
     raise ValueError("API_KEY und SECRET_KEY müssen in der .env-Datei definiert sein!")
 
 # Logging-Verzeichnis und Datei konfigurieren
-LOG_DIRECTORY = "/app"
+LOG_DIRECTORY = "/app/logs"
 LOG_FILE = os.path.join(LOG_DIRECTORY, "trading_bot.log")
-
-# Sicherstellen, dass das Verzeichnis existiert
 os.makedirs(LOG_DIRECTORY, exist_ok=True)
 
-# Logging konfigurieren
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -40,7 +36,7 @@ initialize_database()
 
 # Hauptlogik
 def main():
-    logging.info("Bot gestartet.")
+    logging.info("RSI-Bot gestartet.")
     symbol = "BTC/USDT"
     timeframe = "1m"
     try:
@@ -57,4 +53,5 @@ def main():
 if __name__ == "__main__":
     while True:
         main()
-        time.sleep(10)  # 10 Sekunden Pause zwischen den Zyklen
+        time.sleep(10)
+
