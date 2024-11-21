@@ -1,117 +1,62 @@
 import sqlite3
 import logging
 
-# Konfiguration
-DB_PATH = "trading_data.db"
+DB_FILE = "trading_data.db"
 
-# Logging konfigurieren
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
-def connect_db():
+def initialize_db():
     """
-    Stellt eine Verbindung zur SQLite-Datenbank her.
+    Erstellt die notwendige Datenbankstruktur, falls diese noch nicht existiert.
     """
     try:
-        conn = sqlite3.connect(DB_PATH)
-        logging.debug(f"Verbindung zur Datenbank {DB_PATH} erfolgreich hergestellt.")
-        return conn
-    except sqlite3.Error as e:
-        logging.error(f"Fehler beim Herstellen der DB-Verbindung: {e}")
-        raise
-
-def initialize_database():
-    """
-    Initialisiert die notwendigen Tabellen in der Datenbank.
-    """
-    try:
-        conn = connect_db()
+        conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
 
-        # Tabellen erstellen
+        # Tabelle für Handelssignale
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS trading_data (
+        CREATE TABLE IF NOT EXISTS trades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            symbol TEXT,
+            pair TEXT,
+            timestamp INTEGER,
             rsi REAL,
             signal TEXT,
-            action TEXT
+            action TEXT,
+            profit REAL DEFAULT 0
         )
         """)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS active_pairs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT UNIQUE NOT NULL
-        )
-        """)
-        conn.commit()
-        logging.info("Datenbank erfolgreich initialisiert.")
-    except sqlite3.Error as e:
-        logging.error(f"Fehler bei der Initialisierung der Datenbank: {e}")
-        raise
-    finally:
-        conn.close()
 
-def log_to_db(symbol, rsi, signal, action):
+        logging.info("Datenbank und Tabellen initialisiert.")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Fehler beim Initialisieren der Datenbank: {e}")
+
+def log_to_db(pair, rsi, signal, action, profit=0):
     """
-    Fügt Handelsdaten in die Tabelle 'trading_data' ein.
+    Speichert die Handelssignale und Aktionen in der Datenbank.
     """
     try:
-        conn = connect_db()
+        conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute("""
-        INSERT INTO trading_data (symbol, rsi, signal, action)
-        VALUES (?, ?, ?, ?)
-        """, (symbol, rsi, signal, action))
-        conn.commit()
-        logging.info(f"Daten in DB gespeichert: {symbol}, RSI={rsi}, Signal={signal}, Aktion={action}")
-        return True
-    except sqlite3.Error as e:
-        logging.error(f"Fehler beim Schreiben in die Datenbank: {e}")
-        return False
-    finally:
-        conn.close()
 
-def save_symbols_to_db(symbols):
-    """
-    Speichert Handelspaare in der Tabelle 'active_pairs'.
-    """
-    try:
-        conn = connect_db()
-        cursor = conn.cursor()
-        for symbol in symbols:
-            cursor.execute("""
-            INSERT OR IGNORE INTO active_pairs (symbol)
-            VALUES (?)
-            """, (symbol,))
+        # Daten einfügen
+        cursor.execute("""
+        INSERT INTO trades (pair, timestamp, rsi, signal, action, profit)
+        VALUES (?, strftime('%s', 'now'), ?, ?, ?, ?)
+        """, (pair, rsi, signal, action, profit))
+
+        logging.info(f"Handelssignal für {pair} in die Datenbank geschrieben.")
         conn.commit()
-        if symbols:
-            logging.info(f"{len(symbols)} Handelspaare in die Datenbank eingefügt.")
-        else:
-            logging.info("Keine neuen Handelspaare zum Einfügen.")
-        return True
-    except sqlite3.Error as e:
-        logging.error(f"Fehler beim Speichern der Handelspaare: {e}")
-        return False
-    finally:
         conn.close()
+    except Exception as e:
+        logging.error(f"Fehler beim Speichern in die Datenbank: {e}")
 
 def load_active_pairs():
     """
-    Lädt alle aktiven Handelspaare aus der Tabelle 'active_pairs'.
+    Gibt eine Liste aktiver Handelspaare aus der Datenbank zurück.
+    Fürs Testen können wir hier Dummy-Daten zurückgeben.
     """
     try:
-        conn = connect_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT symbol FROM active_pairs")
-        pairs = [row[0] for row in cursor.fetchall()]
-        if not pairs:
-            logging.warning("Keine aktiven Handelspaare gefunden.")
-        else:
-            logging.info(f"{len(pairs)} aktive Handelspaare aus der Datenbank geladen.")
-        return pairs
-    except sqlite3.Error as e:
-        logging.error(f"Fehler beim Laden der aktiven Handelspaare: {e}")
+        return ["BTC/USDT", "ETH/USDT", "LTC/USDT", "BNB/USDT"]  # Statische Testdaten
+    except Exception as e:
+        logging.error(f"Fehler beim Laden der aktiven Paare: {e}")
         return []
-    finally:
-        conn.close()
