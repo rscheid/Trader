@@ -1,10 +1,10 @@
 import logging
-import time
-from binance_api import setup_exchange, fetch_candles
-from trading_logic import calculate_rsi
-from database import initialize_db, log_to_db
-from dotenv import load_dotenv
 import os
+import time
+from dotenv import load_dotenv  # Lädt Umgebungsvariablen
+from database import log_to_db, load_active_pairs, initialize_pairs_table  # Funktionen für die Datenbank
+from binance_api import setup_exchange, fetch_candles  # Binance-spezifische Logik
+from rsi_calculation import calculate_rsi  # RSI-Berechnung
 
 # Logging konfigurieren
 logging.basicConfig(
@@ -18,21 +18,26 @@ API_KEY = os.getenv("TESTNET_API_KEY")
 SECRET_KEY = os.getenv("TESTNET_SECRET")
 exchange = setup_exchange(API_KEY, SECRET_KEY, testnet=True)
 
-# Datenbank initialisieren
-initialize_db()
+# Handelspaare in die Datenbank einfügen
+initialize_pairs_table(exchange)
 
-def process_pairs(pairs):
+def process_pairs():
     """
     Verarbeitet alle aktiven Handelspaare und loggt RSI-Signale.
     """
+    pairs = load_active_pairs()  # Paare aus der Datenbank laden
+    if not pairs:
+        logging.warning("Keine aktiven Handelspaare gefunden.")
+        return
+
     logging.info(f"{len(pairs)} aktive Paare geladen.")
 
     for idx, pair in enumerate(pairs, start=1):
         try:
             logging.info(f"({idx}/{len(pairs)}) Verarbeite Paar: {pair}")
 
-            # Candle-Daten abrufen
-            candles = fetch_candles(exchange, pair, timeframe="1m", limit=14)
+            # Kerzendaten abrufen
+            candles = fetch_candles(exchange, pair, "1m", limit=14)
             if not candles:
                 logging.warning(f"Keine Daten für {pair} gefunden. Überspringe.")
                 continue
@@ -55,22 +60,28 @@ def process_pairs(pairs):
 
             # Ergebnisse loggen und in die DB schreiben
             logging.info(f"{pair} - RSI: {rsi:.2f}, Signal: {signal}, Aktion: {action}")
-            log_to_db(pair, rsi, signal, action, 0)  # Profit auf 0, da hier nur Signale berechnet werden
+            log_to_db(pair, rsi, signal, action)
 
-            # Warten, um API-Limits einzuhalten
+            # Simulierte Aktion basierend auf dem Signal
+            if signal == "BUY":
+                logging.info(f"Kaufe {pair}. (Simulation)")
+            elif signal == "SELL":
+                logging.info(f"Verkaufe {pair}. (Simulation)")
+            else:
+                logging.info(f"Keine Aktion für {pair}. (HOLD)")
+
+            # API-Limit einhalten
             time.sleep(1)
 
         except Exception as e:
-            logging.error(f"Unerwarteter Fehler bei {pair}: {e}. Überspringe.")
+            logging.error(f"Fehler bei der Verarbeitung von {pair}: {e}. Überspringe.")
             continue
 
 if __name__ == "__main__":
     try:
-        # Liste der Handelspaare definieren
-        pairs = ["BTC/USDT", "ETH/USDT", "LTC/USDT", "BNB/USDT"]  # Beispielpaare
         while True:
             logging.info("Starte Verarbeitung der Handelspaare...")
-            process_pairs(pairs)
+            process_pairs()
             logging.info("Verarbeitung abgeschlossen. Warte 60 Sekunden...")
             time.sleep(60)
     except KeyboardInterrupt:
