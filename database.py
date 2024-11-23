@@ -1,7 +1,12 @@
 import sqlite3
 import logging
+import os
 
+# Datenbankpfad
 DB_PATH = "trading_data.db"
+
+# Logging konfigurieren
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def initialize_database():
     """
@@ -10,21 +15,29 @@ def initialize_database():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+
+        # Tabelle 'trades' erstellen
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trades (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pair TEXT NOT NULL,
-                rsi REAL NOT NULL,
-                signal TEXT NOT NULL,
-                action TEXT NOT NULL,
+                rsi REAL,
+                signal TEXT,
+                action TEXT,
                 last_price REAL,
                 trade_fee REAL,
-                timestamp INTEGER,
-                profit REAL,
                 price_change REAL,
-                volume REAL
+                volume REAL,
+                open_price REAL,
+                high_price REAL,
+                low_price REAL,
+                close_time INTEGER,
+                profit REAL,
+                timestamp INTEGER
             )
         """)
+
+        # Tabelle 'pairs' erstellen
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pairs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,17 +45,7 @@ def initialize_database():
                 active INTEGER DEFAULT 1
             )
         """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS training_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp INTEGER NOT NULL,
-                pair TEXT NOT NULL,
-                rsi REAL NOT NULL,
-                profit REAL,
-                price_change REAL,
-                volume REAL
-            )
-        """)
+
         conn.commit()
         conn.close()
         logging.info("Datenbank und Tabellen initialisiert.")
@@ -52,7 +55,6 @@ def initialize_database():
 def initialize_pairs_table(exchange):
     """
     Initialisiert die Tabelle 'pairs' mit verfügbaren Handelspaaren von der Binance-API.
-    :param exchange: Das Exchange-Objekt für die Binance-Verbindung.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -75,22 +77,33 @@ def initialize_pairs_table(exchange):
     except Exception as e:
         logging.error(f"Fehler beim Initialisieren der 'pairs'-Tabelle: {e}")
 
-def log_to_db(pair, rsi, signal, action, last_price=None, trade_fee=None, timestamp=None, profit=None, price_change=None, volume=None):
+def log_to_db(pair, rsi, signal, action, last_price=None, trade_fee=None, price_change=None, volume=None, timestamp=None, profit=None):
     """
     Loggt Handelssignale in die Datenbank.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+
+        # Standardwerte setzen
+        last_price = last_price or 0.0
+        trade_fee = trade_fee or 0.0
+        price_change = price_change or 0.0
+        volume = volume or 0.0
+        timestamp = timestamp or int(time.time())
+        profit = profit or 0.0
+
+        # Daten einfügen
         cursor.execute("""
-            INSERT INTO trades (pair, rsi, signal, action, last_price, trade_fee, timestamp, profit, price_change, volume)
+            INSERT INTO trades (pair, rsi, signal, action, last_price, trade_fee, price_change, volume, timestamp, profit)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (pair, rsi, signal, action, last_price, trade_fee, timestamp, profit, price_change, volume))
+        """, (pair, rsi, signal, action, last_price, trade_fee, price_change, volume, timestamp, profit))
+
         conn.commit()
         conn.close()
-        logging.info(f"Handelssignal für {pair} in die Datenbank geschrieben.")
+        logging.info(f"Handelssignal für {pair} erfolgreich in die Datenbank geschrieben.")
     except Exception as e:
-        logging.error(f"Fehler beim Schreiben in die Datenbank: {e}")
+        logging.error(f"Fehler beim Schreiben in die Datenbank: {e}", exc_info=True)
 
 def load_active_pairs():
     """
@@ -107,54 +120,21 @@ def load_active_pairs():
         logging.error(f"Fehler beim Laden der Handelspaare: {e}")
         return []
 
-def add_pair(pair):
-    """
-    Fügt ein neues Handelspaar in die Datenbank hinzu.
-    """
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT OR IGNORE INTO pairs (pair) VALUES (?)
-        """, (pair,))
-        conn.commit()
-        conn.close()
-        logging.info(f"Handelspaar {pair} hinzugefügt.")
-    except Exception as e:
-        logging.error(f"Fehler beim Hinzufügen des Handelspaares {pair}: {e}")
+if __name__ == "__main__":
+    # Initialisierung der Datenbank und Tabellen
+    initialize_database()
 
-def deactivate_pair(pair):
-    """
-    Setzt ein Handelspaar auf inaktiv.
-    """
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE pairs SET active = 0 WHERE pair = ?
-        """, (pair,))
-        conn.commit()
-        conn.close()
-        logging.info(f"Handelspaar {pair} deaktiviert.")
-    except Exception as e:
-        logging.error(f"Fehler beim Deaktivieren des Handelspaares {pair}: {e}")
-
-def populate_training_data():
-    """
-    Füllt die training_data-Tabelle mit Werten aus der trades-Tabelle.
-    """
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO training_data (timestamp, pair, rsi, profit, price_change, volume)
-            SELECT timestamp, pair, rsi, profit, price_change, volume
-            FROM trades
-            WHERE profit IS NOT NULL
-        """)
-        conn.commit()
-        count = cursor.rowcount
-        conn.close()
-        logging.info(f"{count} Datensätze erfolgreich in training_data eingefügt.")
-    except Exception as e:
-        logging.error(f"Fehler beim Einfügen von Daten in training_data: {e}")
+    # Beispiel-Testdaten in die Tabelle 'trades' schreiben
+    log_to_db(
+        pair="BTC/USDT",
+        rsi=45.67,
+        signal="HOLD",
+        action="Kein Trade",
+        last_price=45000,
+        trade_fee=45,
+        price_change=100,
+        volume=5000,
+        timestamp=1234567890,
+        profit=0.0
+    )
+    logging.info("Testdaten erfolgreich hinzugefügt.")

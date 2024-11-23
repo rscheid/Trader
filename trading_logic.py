@@ -21,8 +21,6 @@ def calculate_rsi(closes, period=14):
     rs = avg_gain / avg_loss
     return 100 - (100 / (1 + rs))
 
-import ccxt
-
 def fetch_binance_symbols(exchange):
     """
     Ruft alle Handelspaare von Binance ab.
