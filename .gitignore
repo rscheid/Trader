@@ -1,4 +1,7 @@
 /savetradebot/
 /backups/
-/.env
+/root/
+/any_other_directory/
+/*.gz
+/hall_of_fame_*.csv
 /trading_bot.log
