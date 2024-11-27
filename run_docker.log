@@ -1,0 +1,49 @@
+2024-11-27 04:56:48 - Starte Skript: Docker-Build und Container-Management.
+2024-11-27 04:56:48 - Starte Docker-Build mit Dockerfile: Dockerfile
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  5.361MB
+Step 1/10 : FROM python:3.10-slim
+ ---> 8df9adb5d39d
+Step 2/10 : WORKDIR /app
+ ---> Using cache
+ ---> e0411fe5a6a9
+Step 3/10 : RUN apt-get update && apt-get install -y     apt-utils     build-essential     wget     curl     libgmp-dev     && apt-get clean && rm -rf /var/lib/apt/lists/*
+ ---> Using cache
+ ---> d9f51e3939d0
+Step 4/10 : RUN wget https://julialang-s3.julialang.org/bin/linux/x64/1.10/julia-1.10.6-linux-x86_64.tar.gz &&     tar -xvzf julia-1.10.6-linux-x86_64.tar.gz &&     mv julia-1.10.6 /opt/julia &&     ln -s /opt/julia/bin/julia /usr/local/bin/julia &&     rm julia-1.10.6-linux-x86_64.tar.gz
+ ---> Using cache
+ ---> 1fa7be1ef75e
+Step 5/10 : COPY requirements.txt .
+ ---> Using cache
+ ---> 17e0b93ae575
+Step 6/10 : RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+ ---> Using cache
+ ---> 0881dc60646d
+Step 7/10 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Using cache
+ ---> 764025dcd227
+Step 8/10 : COPY . .
+ ---> 5287e391eee8
+Step 9/10 : RUN mkdir -p /app/data /app/logs && chmod -R 777 /app
+ ---> Running in 58b9dcf80e79
+Removing intermediate container 58b9dcf80e79
+ ---> fc608e8e358d
+Step 10/10 : CMD ["python3", "ai_optimizer.py"]
+ ---> Running in c5ec0d985e5d
+Removing intermediate container c5ec0d985e5d
+ ---> 424c9b1a1eb4
+Successfully built 424c9b1a1eb4
+Successfully tagged trading_bot_image:latest
+2024-11-27 04:58:59 - Docker-Image erfolgreich erstellt: trading_bot_image
+2024-11-27 04:58:59 - Prüfe auf laufende Container mit dem Namen: trading_bot_container
+2024-11-27 04:58:59 - Entferne bestehenden Container: trading_bot_container
+trading_bot_container
+2024-11-27 04:59:04 - Starte neuen Docker-Container mit dem Namen: trading_bot_container
+f8e77a575b3e321abd4692b14072c36cfb646e43c5fba09a109548cb565bbee9
+2024-11-27 04:59:06 - Docker-Container erfolgreich gestartet: trading_bot_container
+2024-11-27 04:59:27 - Starte Logs des Containers trading_bot_container (Abbruch mit Ctrl+C möglich)...
+2024-11-27 05:08:36 - Wechsel in die Docker-Konsole des Containers...
+2024-11-27 05:08:48 - Skript beendet.
