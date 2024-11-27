@@ -1,19 +1,7 @@
-cat <<EOL > .gitignore
-# Ausschließen von großen Dateien
-*.tar.gz
-*.gz
-*.db
-*.log
-
-# Ausschließen von Verzeichnissen
-/backups/
 /savetradebot/
-/any_other_large_directory/
-
-# Ausschließen von Cache- oder temporären Dateien
-__pycache__/
-*.pyc
-*.pyo
-*.sqlite
-*.sqlite3
-EOL
+/backups/
+/root/
+/any_other_directory/
+/*.gz
+/hall_of_fame_*.csv
+/trading_bot.log
