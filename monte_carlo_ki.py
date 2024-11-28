@@ -44,12 +44,12 @@ def optimize_monte_carlo(prices, trades):
     return optimized_mu, optimized_sigma
 
 # Logging-Funktion
-def log_trade(action, price, mu, sigma, simulation_result):
+def log_trade(action, price, mu, sigma, simulation_result, actual_price_after_trade=None):
     """
     Protokolliert die Trading-Entscheidungen in einer CSV-Datei.
     """
     with open("trade_log.csv", "a") as f:
-        f.write(f"{action},{price},{mu},{sigma},{simulation_result}\n")
+        f.write(f"{action},{price},{mu},{sigma},{simulation_result},{actual_price_after_trade}\n")
 
 # Haupt-Trading-Logik
 def trading_with_julia(prices, past_trades):
@@ -70,9 +70,12 @@ def trading_with_julia(prices, past_trades):
     else:
         action = "HOLD"
 
+    # Simulierter Preis nach der Entscheidung (z. B. in der Zukunft)
+    actual_price_after_trade = prices[-1] * (1 + np.random.uniform(-0.02, 0.02))
+
     # Ergebnisse loggen
-    log_trade(action, prices[-1], mu, sigma, simulation[-1])
-    print(f"Trading-Entscheidung: {action} bei Preis {prices[-1]}")
+    log_trade(action, prices[-1], mu, sigma, simulation[-1], actual_price_after_trade)
+    print(f"Trading-Entscheidung: {action} bei Preis {prices[-1]}, erwarteter Preis: {actual_price_after_trade}")
     return action
 
 # Hauptprogramm
@@ -87,5 +90,6 @@ if __name__ == "__main__":
         {'mu': 0.03, 'sigma': 0.3, 'profit': 70},
     ]
 
-    # Trading-Workflow starten
-    trading_with_julia(example_prices, past_trades)
+    # Mehrere Trades simulieren
+    for _ in range(10):
+        trading_with_julia(example_prices, past_trades)
