@@ -47,3 +47,28 @@ f8e77a575b3e321abd4692b14072c36cfb646e43c5fba09a109548cb565bbee9
 2024-11-27 04:59:27 - Starte Logs des Containers trading_bot_container (Abbruch mit Ctrl+C möglich)...
 2024-11-27 05:08:36 - Wechsel in die Docker-Konsole des Containers...
 2024-11-27 05:08:48 - Skript beendet.
+2024-11-28 10:48:48 - Starte Skript: Docker-Build und Container-Management.
+2024-11-28 10:48:48 - Starte Docker-Build mit Dockerfile: Dockerfile
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  209.4MB
+Step 1/10 : FROM python:3.10-slim
+ ---> 8df9adb5d39d
+Step 2/10 : WORKDIR /app
+ ---> Using cache
+ ---> e0411fe5a6a9
+Step 3/10 : COPY requirements.txt .
+ ---> Using cache
+ ---> 33bc252d27a0
+Step 4/10 : RUN apt-get update && apt-get install -y     build-essential     libssl-dev     libffi-dev     python3-dev     && rm -rf /var/lib/apt/lists/*
+ ---> Using cache
+ ---> ce62fc19040b
+Step 5/10 : RUN pip install --upgrade pip
+ ---> Using cache
+ ---> 9d96725a7210
+Step 6/10 : RUN pip install --no-cache-dir -r requirements.txt
+ ---> Using cache
+ ---> 020dc9d7b19a
+Step 7/10 : COPY . .
