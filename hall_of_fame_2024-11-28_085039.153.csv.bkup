@@ -1,0 +1,4 @@
+Complexity|MSE|Equation
+1|1.0034007|Price
+3|1.2223608e-11|(Price * 0.99)
+5|1.1641532e-11|(Price - (Price * Mu))
