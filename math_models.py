@@ -1,83 +1,103 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from julia import Main  # PyJulia-Integration
 
-def monte_carlo_simulation(prices, steps=1000, mu=0.05, sigma=0.2):
-    """
-    Simuliert die Preisbewegung eines Assets mit Monte-Carlo-Simulation.
+# --- Julia-Skript einbinden ---
+Main.include("math_models.jl")
 
-    :param prices: Liste der bisherigen Preise.
-    :param steps: Anzahl der Schritte in der Simulation.
-    :param mu: Erwartete Rendite (Drift).
-    :param sigma: Volatilität (Volatility).
-    :return: Simulierte Preisentwicklung als Liste.
-    """
-    dt = 1 / steps
-    last_price = prices[-1]  # Startwert ist der letzte bekannte Preis
-    simulation = [last_price]
-
-    for _ in range(steps):
-        drift = (mu - 0.5 * sigma**2) * dt
-        shock = sigma * np.sqrt(dt) * np.random.normal()
-        next_price = simulation[-1] * np.exp(drift + shock)
-        simulation.append(next_price)
-
-    return simulation
-
-def fourier_analysis(prices):
-    """
-    Führt eine Fourier-Analyse auf den Preisdaten durch, um dominante Frequenzen zu extrahieren.
-
-    :param prices: Liste oder NumPy-Array der Preise.
-    :return: Frequenzkomponenten und deren Amplituden.
-    """
-    prices_array = np.array(prices)
-    fft_result = np.fft.fft(prices_array)
-    frequencies = np.fft.fftfreq(len(prices_array))
-
-    # Nur positive Frequenzen und zugehörige Amplituden
-    positive_freqs = frequencies[frequencies >= 0]
-    amplitudes = np.abs(fft_result[frequencies >= 0])
-
-    return positive_freqs, amplitudes
-
+# --- Python-Implementierungen ---
 def moving_average(prices, window=5):
     """
-    Berechnet den gleitenden Durchschnitt (Moving Average).
-
-    :param prices: Liste der Preise.
-    :param window: Fenstergröße für den gleitenden Durchschnitt.
-    :return: Liste der gleitenden Durchschnitte.
+    Berechnet den einfachen gleitenden Durchschnitt (SMA).
     """
     return pd.Series(prices).rolling(window=window).mean().tolist()
 
 def volatility(prices, window=10):
     """
-    Berechnet die Volatilität eines Assets über ein gegebenes Fenster.
-
-    :param prices: Liste der Preise.
-    :param window: Fenstergröße für die Berechnung.
-    :return: Liste der Volatilitätswerte.
+    Berechnet die Volatilität eines Assets.
     """
     log_returns = np.log(np.array(prices)[1:] / np.array(prices)[:-1])
     return pd.Series(log_returns).rolling(window=window).std().tolist()
 
+def bollinger_bands(prices, window=10):
+    """
+    Berechnet Bollinger-Bänder.
+    """
+    ma = moving_average(prices, window)
+    vol = volatility(prices, window)
+    upper_band = [m + 2 * v if m is not None and v is not None else None for m, v in zip(ma, vol)]
+    lower_band = [m - 2 * v if m is not None and v is not None else None for m, v in zip(ma, vol)]
+    return ma, upper_band, lower_band
+
+def plot_bollinger(prices, window=10):
+    """
+    Visualisiert Bollinger-Bänder.
+    """
+    ma, upper_band, lower_band = bollinger_bands(prices, window)
+    plt.figure(figsize=(12, 6))
+    plt.plot(prices, label="Preise")
+    plt.plot(ma, label="Mittlere Linie (MA)", linestyle='--')
+    plt.plot(upper_band, label="Oberes Band", linestyle=':')
+    plt.plot(lower_band, label="Unteres Band", linestyle=':')
+    plt.fill_between(range(len(prices)), lower_band, upper_band, color='gray', alpha=0.2)
+    plt.title("Bollinger-Bänder")
+    plt.xlabel("Zeit")
+    plt.ylabel("Preis")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# --- Julia-Integration für Monte-Carlo ---
+def julia_monte_carlo(prices, steps=1000):
+    """
+    Nutzt Julia für die Monte-Carlo-Simulation.
+    """
+    mu = np.mean(np.diff(np.log(prices)))  # Durchschnittliche Rendite
+    sigma = np.std(np.diff(np.log(prices)))  # Historische Volatilität
+    simulation = Main.monte_carlo_simulation(prices, steps, mu, sigma)
+    return simulation
+
+def plot_monte_carlo_with_julia(prices, simulations=10, steps=1000):
+    """
+    Visualisiert mehrere Monte-Carlo-Simulationen mit Julia.
+    """
+    plt.figure(figsize=(12, 6))
+    for _ in range(simulations):
+        sim = julia_monte_carlo(prices, steps)
+        plt.plot(sim, alpha=0.6)
+    plt.title("Monte-Carlo-Simulationen (Julia)")
+    plt.xlabel("Zeitschritte")
+    plt.ylabel("Preis")
+    plt.grid(True)
+    plt.show()
+
+# --- Trading-Logik ---
+def trading_decision(prices):
+    """
+    Entscheidungslogik für den Trading-Bot basierend auf Analysen.
+    """
+    ma, upper_band, lower_band = bollinger_bands(prices)
+    last_price = prices[-1]
+
+    if last_price < lower_band[-1]:
+        return "BUY", last_price
+    elif last_price > upper_band[-1]:
+        return "SELL", last_price
+    else:
+        return "HOLD", last_price
+
+# --- Hauptprogramm ---
 if __name__ == "__main__":
-    # Beispiel-Daten (künstliche Preisdaten)
-    example_prices = [100, 101, 102, 103, 105, 104, 103, 102, 100, 98]
+    # Beispiel-Daten (synthetische Preise)
+    example_prices = [100 + np.sin(i / 10) * 5 for i in range(100)]
 
-    print("Monte-Carlo-Simulation:")
-    mc_simulation = monte_carlo_simulation(example_prices)
-    print(mc_simulation[:10])  # Ausgabe der ersten 10 simulierten Preise
+    # Visualisierung der Bollinger-Bänder
+    plot_bollinger(example_prices)
 
-    print("\nFourier-Analyse:")
-    freqs, amps = fourier_analysis(example_prices)
-    print("Frequenzen:", freqs)
-    print("Amplituden:", amps)
+    # Monte-Carlo-Simulationen mit Julia
+    plot_monte_carlo_with_julia(example_prices)
 
-    print("\nGleitender Durchschnitt (5er Fenster):")
-    ma = moving_average(example_prices, window=5)
-    print(ma)
-
-    print("\nVolatilität (10er Fenster):")
-    vol = volatility(example_prices, window=10)
-    print(vol)
+    # Trading-Entscheidung
+    decision, price = trading_decision(example_prices)
+    print(f"Entscheidung: {decision} bei Preis: {price}")
