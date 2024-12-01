@@ -1,0 +1,10 @@
+from update_market_metrics import sanitize_symbol
+
+test_symbols = [
+    "1000BONK/USDT:USDT",
+    "BNB/USD:BNB-241227",
+    "DOGS/USD:DOGS",
+]
+
+for symbol in test_symbols:
+    print(sanitize_symbol(symbol))

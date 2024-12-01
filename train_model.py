@@ -8,10 +8,20 @@ from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_sc
 from sklearn.metrics import accuracy_score, classification_report
 from imblearn.over_sampling import SMOTE
 
+# Funktionen zur Berechnung der Features
+def calculate_ask_bid_spread(ask_prices, bid_prices):
+    return (ask_prices - bid_prices) / ((ask_prices + bid_prices) / 2)
+
+def calculate_relative_price_change(prices, window=5):
+    return prices.pct_change(periods=window)
+
+def calculate_volume_ratio(buy_volume, sell_volume):
+    return buy_volume / (sell_volume + 1e-8)
+
+def calculate_volatility_cluster(prices, window=10):
+    return prices.rolling(window=window).std()
+
 def calculate_rsi(prices, window=14):
-    """
-    Berechnet den Relative Strength Index (RSI).
-    """
     delta = prices.diff()
     gain = delta.where(delta > 0, 0).rolling(window=window).mean()
     loss = -delta.where(delta < 0, 0).rolling(window=window).mean()
@@ -19,47 +29,74 @@ def calculate_rsi(prices, window=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
+def add_features(df):
+    """
+    Fügt erweiterte Features zum DataFrame hinzu.
+    """
+    if "AskPrice" in df.columns and "BidPrice" in df.columns:
+        df["AskBidSpread"] = calculate_ask_bid_spread(df["AskPrice"], df["BidPrice"])
+    else:
+        df["AskBidSpread"] = 0  # Platzhalter
+
+    df["RelativePriceChange"] = calculate_relative_price_change(df["Price"], window=5)
+
+    if "BuyVolume" in df.columns and "SellVolume" in df.columns:
+        df["VolumeRatio"] = calculate_volume_ratio(df["BuyVolume"], df["SellVolume"])
+    else:
+        df["VolumeRatio"] = 0  # Platzhalter
+
+    df["RSI_Short"] = calculate_rsi(df["Price"], window=14)
+    df["RSI_Long"] = calculate_rsi(df["Price"], window=50)
+
+    df["VolatilityCluster"] = calculate_volatility_cluster(df["Price"], window=10)
+
+    df = df.fillna(0)
+    return df
+
+# Hauptfunktion für das Training
 def train_model(log_file="trade_log.csv"):
     """
-    Trainiert ein XGBoost-Modell mit vollständiger Grid-Search, Zwischenspeicherung und Parallelisierung.
+    Trainiert ein XGBoost-Modell mit erweiterten Features.
     """
     # 1. Daten laden
     columns = ["Action", "Price", "Mu", "Sigma", "SimulationResult", "ActualPriceAfterTrade"]
     df = pd.read_csv(log_file, names=columns)
 
-    # 2. Zielvariable (Success) erstellen
-    df["Success"] = (df["ActualPriceAfterTrade"] > df["Price"]).astype(int)  # Für BUY
+    # Dummy-Werte für fehlende Spalten
+    if "AskPrice" not in df.columns:
+        df["AskPrice"] = df["Price"] * 1.01  # Dummy: 1% höher als Preis
+    if "BidPrice" not in df.columns:
+        df["BidPrice"] = df["Price"] * 0.99  # Dummy: 1% niedriger als Preis
+    if "BuyVolume" not in df.columns:
+        df["BuyVolume"] = np.random.uniform(50, 100, size=len(df))
+    if "SellVolume" not in df.columns:
+        df["SellVolume"] = np.random.uniform(40, 90, size=len(df))
+
+    # Features hinzufügen
+    df = add_features(df)
+
+    # Zielvariable (Success) erstellen
+    df["Success"] = (df["ActualPriceAfterTrade"] > df["Price"]).astype(int)
     df.loc[df["Action"] == "SELL", "Success"] = (df["ActualPriceAfterTrade"] < df["Price"]).astype(int)
 
-    # 3. Zusätzliche Features hinzufügen
-    df["PriceChange"] = (df["Price"] - df["Price"].shift(1)) / df["Price"].shift(1)
-    df["MovingAverage"] = df["Price"].rolling(window=5).mean()
-    df["Volatility"] = df["Price"].rolling(window=5).std()
-    df["RSI"] = calculate_rsi(df["Price"])
-    df["Momentum"] = df["Price"] - df["Price"].shift(5)
-    df = df.fillna(0)  # Fehlende Werte auffüllen
-
     # Features und Ziel trennen
-    X = df[["Price", "Mu", "Sigma", "SimulationResult", "PriceChange", "MovingAverage", "Volatility", "RSI", "Momentum"]]
+    feature_columns = [
+        "Price", "Mu", "Sigma", "SimulationResult", "AskBidSpread", 
+        "RelativePriceChange", "VolumeRatio", "RSI_Short", "RSI_Long", "VolatilityCluster"
+    ]
+    X = df[feature_columns]
     y = df["Success"]
 
-    # 4. Klassenverteilung prüfen
-    print("Klassenverteilung vor SMOTE:")
-    print(y.value_counts())
-
-    # 5. Daten balancieren mit SMOTE
+    # SMOTE für Balancierung
     smote = SMOTE(random_state=42)
     X_resampled, y_resampled = smote.fit_resample(X, y)
 
-    print("Klassenverteilung nach SMOTE:")
-    print(pd.Series(y_resampled).value_counts())
-
-    # 6. Stratified Train-Test-Split
+    # Train-Test-Split
     X_train, X_test, y_train, y_test = train_test_split(
         X_resampled, y_resampled, test_size=0.3, stratify=y_resampled, random_state=42
     )
 
-    # 7. Grid-Search für Hyperparameter-Optimierung
+    # Grid-Search für Hyperparameter
     param_grid = {
         "n_estimators": [100, 300, 500],
         "max_depth": [5, 10, 15],
@@ -74,41 +111,26 @@ def train_model(log_file="trade_log.csv"):
         scoring="accuracy",
         cv=5,
         verbose=1,
-        n_jobs=-1  # Nutze alle verfügbaren CPU-Kerne
+        n_jobs=-1
     )
 
-    # Grid-Search mit Zwischenspeicherung der Ergebnisse
-    try:
-        grid_search.fit(X_train, y_train)
-        results = pd.DataFrame(grid_search.cv_results_)
-        results.to_csv("grid_search_results.csv", index=False)
-        print(f"\nBeste Parameter: {grid_search.best_params_}")
-    except KeyboardInterrupt:
-        print("\nGrid-Search wurde abgebrochen. Zwischenergebnisse werden gespeichert.")
-        results = pd.DataFrame(grid_search.cv_results_)
-        results.to_csv("grid_search_results_partial.csv", index=False)
-        return
+    grid_search.fit(X_train, y_train)
+    print(f"\nBeste Parameter: {grid_search.best_params_}")
 
-    # 8. Bestes Modell trainieren
     best_model = grid_search.best_estimator_
     best_model.fit(X_train, y_train)
 
-    # 9. Cross-Validation Accuracy
     scores = cross_val_score(best_model, X_resampled, y_resampled, cv=5, scoring="accuracy")
     print(f"\nCross-Validation Accuracy: {scores.mean():.2f} (+/- {scores.std():.2f})")
 
-    # 10. Vorhersagen und Ergebnisse auswerten
     y_pred = best_model.predict(X_test)
-
     print("\n--- Modellleistung ---")
     print(f"Accuracy (Testdaten): {accuracy_score(y_test, y_pred):.2f}")
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred))
 
-    # 11. Modell speichern
     best_model.save_model("xgboost_trading_model.json")
     print("\nDas Modell wurde als 'xgboost_trading_model.json' gespeichert.")
-    return best_model
 
 if __name__ == "__main__":
     train_model()
